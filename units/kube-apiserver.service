@@ -16,7 +16,6 @@ ExecStart=/usr/local/bin/kube-apiserver \
   --enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
   --etcd-servers=http://127.0.0.1:2379 \
   --event-ttl=1h \
-  --encryption-provider-config=/var/lib/kubernetes/encryption-config.yaml \
   --kubelet-certificate-authority=/var/lib/kubernetes/ca.crt \
   --kubelet-client-certificate=/var/lib/kubernetes/kube-api-server.crt \
   --kubelet-client-key=/var/lib/kubernetes/kube-api-server.key \

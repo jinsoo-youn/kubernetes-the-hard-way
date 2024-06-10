@@ -1,8 +1,6 @@
 # Kubernetes The Hard Way
 
-This tutorial walks you through setting up Kubernetes the hard way. This guide is not for someone looking for a fully automated tool to bring up a Kubernetes cluster. Kubernetes The Hard Way is optimized for learning, which means taking the long route to ensure you understand each task required to bootstrap a Kubernetes cluster.
-
-> The results of this tutorial should not be viewed as production ready, and may receive limited support from the community, but don't let that stop you from learning!
+본 튜토리얼은 Kubernetes 구성 과정을 명확하게 이해하기 위한 목적으로 Kubernetes를 별도의 부트스트랩 (Kubeadm, kubespray)를 사용하지 않고, 구성에 필요한 과정을 직접하여 설치 과정이 추상화된 부분을 명확하게 이해하고자 한다.
 
 ## Copyright
 
@@ -11,11 +9,14 @@ This tutorial walks you through setting up Kubernetes the hard way. This guide i
 
 ## Target Audience
 
-The target audience for this tutorial is someone who wants to understand the fundamentals of Kubernetes and how the core components fit together.
+본 튜토리얼은 쿠버네티스의 기본 사항과 핵심 구성 요소가 어떻게 구성되는지 이해한다. 더 나아가 EKS 등의 관리형 쿠버네티스 서비스를 구성하는 방법의 기본적 개념을 이해할 수 있다.
 
 ## Cluster Details
 
-Kubernetes The Hard Way guides you through bootstrapping a basic Kubernetes cluster with all control plane components running on a single node, and two worker nodes, which is enough to learn the core concepts.
+* 본 `Kubernetes The Hard Way` 는 원본과 달리 amd64 기반의 Ubuntu22.04를 기본으로 사용한다.
+* 컴퓨팅 성능은 원본과 달리 모두 2코어 CPU와 2GB RAM으로 설정한다. (jumpbox 터미널 응답 속도가 늦으면, 더 하기 싫어지기 떄문이다.)
+* CNI 구성은 원 구성과 다르게 Calico 로 하며, [Calico the hard way](https://docs.tigera.io/calico/latest/getting-started/kubernetes/hardway/) 튜토리얼을 토대로 구성한다. 
+
 
 Component versions:
 
@@ -26,14 +27,15 @@ Component versions:
 
 ## Labs
 
-This tutorial requires four (4) ARM64 based virtual or physical machines connected to the same network. While ARM64 based machines are used for the tutorial, the lessons learned can be applied to other platforms.
+* 이 튜토리얼은 4개의 amd64 아키텍처를 사용하는 Ubuntu 22.04, 2코어, 2GB RAM의 가상 머신으로 구성한다. 
+* 가상 머신은 AWS, GCP, Azure, NHN Cloud 등 원하는 클라우드 제공업체나 VirtualBox 등을 사용해 생성한다.
+  * (필자는 NHN Cloud의 직원이므로 NHN Cloud에서 가상 머신을 생성하여 튜토리얼을 진행한다.)
 
 * [Prerequisites](docs/01-prerequisites.md)
 * [Setting up the Jumpbox](docs/02-jumpbox.md)
 * [Provisioning Compute Resources](docs/03-compute-resources.md)
 * [Provisioning the CA and Generating TLS Certificates](docs/04-certificate-authority.md)
 * [Generating Kubernetes Configuration Files for Authentication](docs/05-kubernetes-configuration-files.md)
-* [Generating the Data Encryption Config and Key](docs/06-data-encryption-keys.md)
 * [Bootstrapping the etcd Cluster](docs/07-bootstrapping-etcd.md)
 * [Bootstrapping the Kubernetes Control Plane](docs/08-bootstrapping-kubernetes-controllers.md)
 * [Bootstrapping the Kubernetes Worker Nodes](docs/09-bootstrapping-kubernetes-workers.md)
