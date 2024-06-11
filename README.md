@@ -1,6 +1,6 @@
 # Kubernetes The Hard Way
 
-본 튜토리얼은 Kubernetes 구성 과정을 명확하게 이해하기 위한 목적으로 Kubernetes를 별도의 부트스트랩 (Kubeadm, kubespray)를 사용하지 않고, 구성에 필요한 과정을 직접하여 설치 과정이 추상화된 부분을 명확하게 이해하고자 한다.
+본 튜토리얼은 Kubernetes 구성 과정을 명확하게 이해하기 위한 목적으로 Kubernetes를 별도의 부트스트랩(Kubeadm, kubespray) 없이, 설치를 직접하면서 추상화된 부분을 명확하게 이해하고자 한다.
 
 ## Copyright
 
