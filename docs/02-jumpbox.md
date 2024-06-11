@@ -7,7 +7,13 @@ Think of the `jumpbox` as the administration machine that you will use as a home
 Log in to the `jumpbox`:
 
 ```bash
-ssh root@jumpbox
+ssh -i your/ssh/key ubuntu@jumpbox
+```
+
+Change to root user:
+
+```bash
+sudo su - 
 ```
 
 All commands will be run as the `root` user. This is being done for the sake of convenience, and will help reduce the number of commands required to set everything up.
@@ -71,25 +77,26 @@ wget -q --show-progress \
   -i downloads.txt
 ```
 
-Depending on your internet connection speed it may take a while to download the `584` megabytes of binaries, and once the download is complete, you can list them using the `ls` command:
+인터넷 연결 속도에 따라 총 625 MB 의 바이너리 파일을 받는데 걸리는 시간이 다르며, 대략 24초 정도의 시간이 소요된다. 
+다운로드가 끝나면, `ls` 명령어로 다운로드한 파일을 목록을 확인한다.
 
 ```bash
 ls -loh downloads
 ```
 
 ```text
-total 584M
--rw-r--r-- 1 root  41M May  9 13:35 cni-plugins-linux-arm64-v1.3.0.tgz
--rw-r--r-- 1 root  34M Oct 26 15:21 containerd-1.7.8-linux-arm64.tar.gz
--rw-r--r-- 1 root  22M Aug 14 00:19 crictl-v1.28.0-linux-arm.tar.gz
--rw-r--r-- 1 root  15M Jul 11 02:30 etcd-v3.4.27-linux-arm64.tar.gz
--rw-r--r-- 1 root 111M Oct 18 07:34 kube-apiserver
--rw-r--r-- 1 root 107M Oct 18 07:34 kube-controller-manager
--rw-r--r-- 1 root  51M Oct 18 07:34 kube-proxy
--rw-r--r-- 1 root  52M Oct 18 07:34 kube-scheduler
--rw-r--r-- 1 root  46M Oct 18 07:34 kubectl
--rw-r--r-- 1 root 101M Oct 18 07:34 kubelet
--rw-r--r-- 1 root 9.6M Aug 10 18:57 runc.arm64
+total 625M
+-rw-r--r-- 1 root  44M May 10  2023 cni-plugins-linux-amd64-v1.3.0.tgz
+-rw-r--r-- 1 root  46M Oct 27  2023 containerd-1.7.8-linux-amd64.tar.gz
+-rw-r--r-- 1 root  23M Aug 14  2023 crictl-v1.28.0-linux-amd64.tar.gz
+-rw-r--r-- 1 root  16M Jul 11  2023 etcd-v3.4.27-linux-amd64.tar.gz
+-rw-r--r-- 1 root 117M Oct 18  2023 kube-apiserver
+-rw-r--r-- 1 root 113M Oct 18  2023 kube-controller-manager
+-rw-r--r-- 1 root  53M Oct 18  2023 kube-proxy
+-rw-r--r-- 1 root  54M Oct 18  2023 kube-scheduler
+-rw-r--r-- 1 root  48M Oct 18  2023 kubectl
+-rw-r--r-- 1 root 106M Oct 18  2023 kubelet
+-rw-r--r-- 1 root  11M Aug 11  2023 runc.amd64
 ```
 
 ### Install kubectl

@@ -7,6 +7,8 @@ In this lab you will provision a [PKI Infrastructure](https://en.wikipedia.org/w
 In this section you will provision a Certificate Authority that can be used to generate additional TLS certificates for the other Kubernetes components. Setting up CA and generating certificates using `openssl` can be time-consuming, especially when doing it for the first time. To streamline this lab, I've included an openssl configuration file `ca.conf`, which defines all the details needed to generate certificates for each Kubernetes component. 
 
 Take a moment to review the `ca.conf` configuration file:
+> ca.conf 에 포함된 내용을 이해하는게 절대적으로 중요하다. 반드시 해당 내용을 확인하고 넘어가자
+
 
 ```bash
 cat ca.conf
@@ -65,6 +67,35 @@ for i in ${certs[*]}; do
     -CAcreateserial \
     -out "${i}.crt"
 done
+```
+
+results:
+* admin: admin.crt, admin.key, admin.csr
+* system:node:node-0: node-0.crt, node-0.key, node-0.csr
+* system:node:node-1: node-1.crt, node-1.key, node-1.csr
+* system:kube-proxy: kube-proxy.crt, kube-proxy.key, kube-proxy.csr
+* system:kube-scheduler: kube-scheduler.crt, kube-scheduler.key, kube-scheduler.csr
+* system:kube-controller-manager: kube-scheduler.crt, kube-scheduler.key, kube-scheduler.csr
+* kubernetes: kube-api-server.crt, kube-api-server.key, kube-api-server.csr
+* service-accounts: service-accounts.crt, service-accounts.key, service-accounts.csr
+
+```txt
+Certificate request self-signature ok
+subject=CN = admin, O = system:masters
+ls -Certificate request self-signature ok
+subject=CN = system:node:node-0, O = system:nodes, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = system:node:node-1, O = system:nodes, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = system:kube-proxy, O = system:node-proxier, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = system:kube-scheduler, O = system:system:kube-scheduler, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = system:kube-controller-manager, O = system:kube-controller-manager, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = kubernetes, C = US, ST = Washington, L = Seattle
+Certificate request self-signature ok
+subject=CN = service-accounts
 ```
 
 The results of running the above command will generate a private key, certificate request, and signed SSL certificate for each of the Kubernetes components. You can list the generated files with the following command:

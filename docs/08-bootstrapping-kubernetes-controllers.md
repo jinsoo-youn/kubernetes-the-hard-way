@@ -153,6 +153,20 @@ kubectl apply -f kube-apiserver-to-kubelet.yaml \
   --kubeconfig admin.kubeconfig
 ```
 
+부여되는 권한 
+kube-apiserver -> kubelet으로 nodes에 관련된 리소스를 조회할 수 있는 권한을 부여한다.
+* subject: User -> kubernetes
+* clusterrole: 
+  * resources: nodes/proxy, nodes/stats, nodes/log, nodes/spec, nodes/metrics 
+  * verbs: "*"
+
+
+results:
+```text
+clusterrole.rbac.authorization.k8s.io/system:kube-apiserver-to-kubelet created
+clusterrolebinding.rbac.authorization.k8s.io/system:kube-apiserver created
+```
+
 ### Verification
 
 At this point the Kubernetes control plane is up and running. Run the following commands from the `jumpbox` machine to verify it's working:
@@ -173,7 +187,7 @@ curl -k --cacert ca.crt https://server.kubernetes.local:6443/version
   "buildDate": "2023-10-18T11:33:18Z",
   "goVersion": "go1.20.10",
   "compiler": "gc",
-  "platform": "linux/arm64"
+  "platform": "linux/amd64"
 }
 ```
 

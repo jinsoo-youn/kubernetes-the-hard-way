@@ -13,6 +13,7 @@ When generating kubeconfig files for Kubelets the client certificate matching th
 > The following commands must be run in the same directory used to generate the SSL certificates during the [Generating TLS Certificates](04-certificate-authority.md) lab.
 
 Generate a kubeconfig file the node-0 worker node:
+~~> embed-certs 옵션을 사용하면 kubeconfig 에 base64로 디코딩 되어 기입된다. 그러나 kubeadm에서 kubeconfig 구성 시 client 부분은 인증서 파일 경로를 지정하여 구성하기에 본문도 동일한 방식으로 하기 위해 `--embed-certs=true` 옵션을 생략하여 구성한다.~~
 
 ```bash
 for host in node-0 node-1; do
