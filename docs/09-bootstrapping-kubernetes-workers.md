@@ -1,6 +1,13 @@
 # Bootstrapping the Kubernetes Worker Nodes
 
-In this lab you will bootstrap two Kubernetes worker nodes. The following components will be installed: [runc](https://github.com/opencontainers/runc), [container networking plugins](https://github.com/containernetworking/cni), [containerd](https://github.com/containerd/containerd), [kubelet](https://kubernetes.io/docs/admin/kubelet), and [kube-proxy](https://kubernetes.io/docs/concepts/cluster-administration/proxies).
+In this lab you will bootstrap two Kubernetes worker nodes. The following components will be installed: 
+* [runc](https://github.com/opencontainers/runc)
+* [container networking plugins](https://github.com/containernetworking/cni)
+  * [CNI-Calico](https://docs.tigera.io/calico/latest/getting-started/kubernetes/hardway/install-cni-plugin)
+* [containerd](https://github.com/containerd/containerd)
+* [kubelet](https://kubernetes.io/docs/admin/kubelet)
+* [kube-proxy](https://kubernetes.io/docs/concepts/cluster-administration/proxies)
+  * clusterCIDR: "10.200.0.0/16"
 
 ## Prerequisites
 
@@ -8,29 +15,14 @@ Copy Kubernetes binaries and systemd unit files to each worker instance:
 
 ```bash
 for host in node-0 node-1; do
-  SUBNET=$(grep $host machines.txt | cut -d " " -f 4)
-  sed "s|SUBNET|$SUBNET|g" \
-    configs/10-bridge.conf > 10-bridge.conf 
-    
-  sed "s|SUBNET|$SUBNET|g" \
-    configs/kubelet-config.yaml > kubelet-config.yaml
-    
-  scp 10-bridge.conf kubelet-config.yaml \
-  root@$host:~/
-done
-```
-
-```bash
-for host in node-0 node-1; do
   scp \
     downloads/runc.arm64 \
-    downloads/crictl-v1.28.0-linux-arm.tar.gz \
-    downloads/cni-plugins-linux-arm64-v1.3.0.tgz \
-    downloads/containerd-1.7.8-linux-arm64.tar.gz \
+    downloads/crictl-v1.28.0-linux-amd64.tar.gz \
+    downloads/containerd-1.7.8-linux-amd64.tar.gz \
+    downloads/runc.amd64 \
     downloads/kubectl \
     downloads/kubelet \
     downloads/kube-proxy \
-    configs/99-loopback.conf \
     configs/containerd-config.toml \
     configs/kubelet-config.yaml \
     configs/kube-proxy-config.yaml \
@@ -95,23 +87,22 @@ Install the worker binaries:
 ```bash
 {
   mkdir -p containerd
-  tar -xvf crictl-v1.28.0-linux-arm.tar.gz
-  tar -xvf containerd-1.7.8-linux-arm64.tar.gz -C containerd
-  tar -xvf cni-plugins-linux-arm64-v1.3.0.tgz -C /opt/cni/bin/
-  mv runc.arm64 runc
+  tar -xvf crictl-v1.28.0-linux-amd64.tar.gz
+  tar -xvf containerd-1.7.8-linux-amd64.tar.gz -C containerd
+  mv runc.amd64 runc
   chmod +x crictl kubectl kube-proxy kubelet runc 
   mv crictl kubectl kube-proxy kubelet runc /usr/local/bin/
   mv containerd/bin/* /bin/
 }
 ```
 
-### Configure CNI Networking
+~~### Configure CNI Networking~~
 
-Create the `bridge` network configuration file:
+~~Create the `bridge` network configuration file:~~
 
-```bash
-mv 10-bridge.conf 99-loopback.conf /etc/cni/net.d/
-```
+~~```bash~~
+~~mv 10-bridge.conf 99-loopback.conf /etc/cni/net.d/~~
+~~```~~
 
 ### Configure containerd
 
@@ -168,9 +159,11 @@ ssh root@server \
 ```
 
 ```
-NAME     STATUS   ROLES    AGE    VERSION
-node-0   Ready    <none>   1m     v1.28.3
-node-1   Ready    <none>   10s    v1.28.3
+NAME     STATUS     ROLES    AGE    VERSION
+node-0   NotReady   <none>   4m5s   v1.28.3
+node-1   NotReady   <none>   12s    v1.28.3
 ```
+
+> CNI 설치가 안되어 있기 때문에 NODE의 상태가 NotReady 로 되어 있다. 
 
 Next: [Configuring kubectl for Remote Access](10-configuring-kubectl.md)
