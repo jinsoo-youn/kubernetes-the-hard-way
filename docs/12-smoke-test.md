@@ -65,7 +65,7 @@ List the pod created by the `nginx` deployment:
 kubectl get pods -l app=nginx
 ```
 
-```bash
+```text
 NAME                     READY   STATUS    RESTARTS   AGE
 nginx-56fcf95486-c8dnx   1/1     Running   0          8s
 ```
@@ -100,13 +100,13 @@ curl --head http://127.0.0.1:8080
 
 ```text
 HTTP/1.1 200 OK
-Server: nginx/1.25.3
-Date: Sun, 29 Oct 2023 01:44:32 GMT
+Server: nginx/1.27.0
+Date: Wed, 12 Jun 2024 10:55:23 GMT
 Content-Type: text/html
 Content-Length: 615
-Last-Modified: Tue, 24 Oct 2023 13:46:47 GMT
+Last-Modified: Tue, 28 May 2024 13:22:30 GMT
 Connection: keep-alive
-ETag: "6537cac7-267"
+ETag: "6655da96-267"
 Accept-Ranges: bytes
 
 ```
@@ -132,7 +132,8 @@ kubectl logs $POD_NAME
 
 ```text
 ...
-127.0.0.1 - - [01/Nov/2023:06:10:17 +0000] "HEAD / HTTP/1.1" 200 0 "-" "curl/7.88.1" "-"
+127.0.0.1 - - [12/Jun/2024:10:55:10 +0000] "GET / HTTP/1.1" 200 615 "-" "curl/7.81.0" "-"
+127.0.0.1 - - [12/Jun/2024:10:55:23 +0000] "HEAD / HTTP/1.1" 200 0 "-" "curl/7.81.0" "-"
 ```
 
 ### Exec
@@ -146,7 +147,7 @@ kubectl exec -ti $POD_NAME -- nginx -v
 ```
 
 ```text
-nginx version: nginx/1.25.3
+nginx version: nginx/1.27.0
 ```
 
 ## Services
@@ -173,17 +174,28 @@ Make an HTTP request using the IP address and the `nginx` node port:
 
 ```bash
 curl -I http://node-0:${NODE_PORT}
+curl -I http://node-1:${NODE_PORT}
 ```
 
 ```text
 HTTP/1.1 200 OK
-Server: nginx/1.25.3
-Date: Sun, 29 Oct 2023 05:11:15 GMT
+Server: nginx/1.27.0
+Date: Wed, 12 Jun 2024 10:56:47 GMT
 Content-Type: text/html
 Content-Length: 615
-Last-Modified: Tue, 24 Oct 2023 13:46:47 GMT
+Last-Modified: Tue, 28 May 2024 13:22:30 GMT
 Connection: keep-alive
-ETag: "6537cac7-267"
+ETag: "6655da96-267"
+Accept-Ranges: bytes
+
+HTTP/1.1 200 OK
+Server: nginx/1.27.0
+Date: Wed, 12 Jun 2024 10:56:52 GMT
+Content-Type: text/html
+Content-Length: 615
+Last-Modified: Tue, 28 May 2024 13:22:30 GMT
+Connection: keep-alive
+ETag: "6655da96-267"
 Accept-Ranges: bytes
 ```
 

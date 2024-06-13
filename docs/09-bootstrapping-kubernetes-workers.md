@@ -7,7 +7,7 @@ In this lab you will bootstrap two Kubernetes worker nodes. The following compon
 * [containerd](https://github.com/containerd/containerd)
 * [kubelet](https://kubernetes.io/docs/admin/kubelet)
 * [kube-proxy](https://kubernetes.io/docs/concepts/cluster-administration/proxies)
-  * clusterCIDR: "10.200.0.0/16"
+  * clusterCIDR: "10.200.0.0/16" (kube-proxy-config.yaml)
 
 ## Prerequisites
 
@@ -166,4 +166,4 @@ node-1   NotReady   <none>   12s    v1.28.3
 
 > CNI 설치가 안되어 있기 때문에 NODE의 상태가 NotReady 로 되어 있다. 
 
-Next: [Configuring kubectl for Remote Access](10-configuring-kubectl.md)
+Next: [Bootstrapping Kubernetes CNI - Calico](10-bootstrapping-kubernetes-cni.md)

@@ -9,3 +9,5 @@ https://github.com/containerd/containerd/releases/download/v1.7.8/containerd-1.7
 https://storage.googleapis.com/kubernetes-release/release/v1.28.3/bin/linux/amd64/kube-proxy
 https://storage.googleapis.com/kubernetes-release/release/v1.28.3/bin/linux/amd64/kubelet
 https://github.com/etcd-io/etcd/releases/download/v3.4.27/etcd-v3.4.27-linux-amd64.tar.gz
+## Calico 
+## https://github.com/projectcalico/calico/releases/download/v3.27.3/calicoctl-linux-amd64

@@ -25,7 +25,7 @@ curl -k --cacert ca.crt \
   "buildDate": "2023-10-18T11:33:18Z",
   "goVersion": "go1.20.10",
   "compiler": "gc",
-  "platform": "linux/arm64"
+  "platform": "linux/amd64"
 }
 ```
 
@@ -78,4 +78,4 @@ node-0   Ready    <none>   30m   v1.28.3
 node-1   Ready    <none>   35m   v1.28.3
 ```
 
-Next: [Provisioning Pod Network Routes](11-pod-network-routes.md)
+Next: [Smoke Test](12-smoke-test.md)
