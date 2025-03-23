@@ -1,19 +1,35 @@
-# Generating Kubernetes Configuration Files for Authentication
+### 개요
 
-In this lab you will generate [Kubernetes configuration files](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/), also known as kubeconfigs, which enable Kubernetes clients to locate and authenticate to the Kubernetes API Servers.
+이 실습에서는 **kubeconfig** 파일(쿠버네티스 구성 파일)을 생성합니다. 
+이는 `kubelet`, `kube-proxy`, 그리고 클러스터 관리자(`admin`) 등 여러 클라이언트가 Kubernetes API 서버에 안전하게 접속하기 위해 필요한 인증 정보와 API 서버 위치 등을 포함합니다.
 
-## Client Authentication Configs
+> **팁:** 본 문서의 모든 명령은 [TLS 인증서 생성](04-certificate-authority.md) 단계를 진행했던 디렉터리 내에서 실행해야 합니다.
 
-In this section you will generate kubeconfig files for the `kubelet` and the `admin` user.
+### 1. 클라이언트 인증 설정
 
-### The kubelet Kubernetes Configuration File
+다음 대상에 대한 kubeconfig 파일을 생성합니다:
 
-When generating kubeconfig files for Kubelets the client certificate matching the Kubelet's node name must be used. This will ensure Kubelets are properly authorized by the Kubernetes [Node Authorizer](https://kubernetes.io/docs/admin/authorization/node/).
+- **Kubelet**(각 노드: `node-0`, `node-1`)
+- **kube-proxy**
+- **kube-controller-manager**
+- **kube-scheduler**
+- **admin** (사람/운영자 역할)
 
-> The following commands must be run in the same directory used to generate the SSL certificates during the [Generating TLS Certificates](04-certificate-authority.md) lab.
+각 kubeconfig 파일에는 다음 정보가 담깁니다:
 
-Generate a kubeconfig file the node-0 worker node:
-~~> embed-certs 옵션을 사용하면 kubeconfig 에 base64로 디코딩 되어 기입된다. 그러나 kubeadm에서 kubeconfig 구성 시 client 부분은 인증서 파일 경로를 지정하여 구성하기에 본문도 동일한 방식으로 하기 위해 `--embed-certs=true` 옵션을 생략하여 구성한다.~~
+- **클러스터 정보**(CA 인증서, API 서버 주소)
+- **사용자 자격 증명**(각 구성 요소별 인증서/키)
+- **컨텍스트**(특정 클러스터와 사용자 매핑)
+
+이하 예시는 `kubectl config set-*` 명령어를 사용해 kubeconfig를 생성 및 수정하는 방법을 보여줍니다.
+
+---
+
+### 2. Kubelet Kubeconfig
+
+**kubelet**은 `system:node:<hostname>`이라는 사용자 이름으로 API 서버에 인증해야 합니다. 이를 통해 Kubernetes [Node Authorizer](https://kubernetes.io/docs/admin/authorization/node/)가 노드를 식별하고 올바르게 권한 부여를 수행할 수 있습니다.
+
+> **참고:** 아래 예시에는 `--embed-certs=true`를 사용하여 인증서와 키를 kubeconfig에 직접 포함하고 있습니다. 파일 경로를 참조하는 방법을 선호한다면 이 옵션을 제거하고 `--certificate-authority`, `--client-certificate`, `--client-key` 대신 파일 경로를 명시해 주세요.
 
 ```bash
 for host in node-0 node-1; do
@@ -39,16 +55,15 @@ for host in node-0 node-1; do
 done
 ```
 
-Results:
+**생성된 파일**:
+- `node-0.kubeconfig`
+- `node-1.kubeconfig`
 
-```text
-node-0.kubeconfig
-node-1.kubeconfig
-```
+---
 
-### The kube-proxy Kubernetes Configuration File
+### 3. kube-proxy Kubeconfig
 
-Generate a kubeconfig file for the `kube-proxy` service:
+**kube-proxy**는 워커 노드에서 실행되며, Service 및 Endpoint 정보를 가져와 로드 밸런싱과 서비스 디스커버리를 수행하려면 API 서버에 접근할 자격 증명이 필요합니다.
 
 ```bash
 {
@@ -74,15 +89,14 @@ Generate a kubeconfig file for the `kube-proxy` service:
 }
 ```
 
-Results:
+**생성된 파일**:
+- `kube-proxy.kubeconfig`
 
-```text
-kube-proxy.kubeconfig
-```
+---
 
-### The kube-controller-manager Kubernetes Configuration File
+### 4. kube-controller-manager Kubeconfig
 
-Generate a kubeconfig file for the `kube-controller-manager` service:
+**kube-controller-manager**는 Pod, Service, Endpoint, ReplicaSet 등의 리소스를 관리하기 위해 API 서버와 통신해야 하며, 이에 적절한 인증 정보를 가져야 합니다.
 
 ```bash
 {
@@ -108,16 +122,14 @@ Generate a kubeconfig file for the `kube-controller-manager` service:
 }
 ```
 
-Results:
+**생성된 파일**:
+- `kube-controller-manager.kubeconfig`
 
-```text
-kube-controller-manager.kubeconfig
-```
+---
 
+### 5. kube-scheduler Kubeconfig
 
-### The kube-scheduler Kubernetes Configuration File
-
-Generate a kubeconfig file for the `kube-scheduler` service:
+**kube-scheduler**는 API 서버에 스케줄링 대상인 노드 정보, Pod 정보 등을 요청하기 위해 kubeconfig를 사용합니다.
 
 ```bash
 {
@@ -143,15 +155,14 @@ Generate a kubeconfig file for the `kube-scheduler` service:
 }
 ```
 
-Results:
+**생성된 파일**:
+- `kube-scheduler.kubeconfig`
 
-```text
-kube-scheduler.kubeconfig
-```
+---
 
-### The admin Kubernetes Configuration File
+### 6. admin Kubeconfig
 
-Generate a kubeconfig file for the `admin` user:
+**admin** 사용자는 클러스터 관리자가 주로 사용하는 계정입니다. 서버(localhost)나 로컬 워크스테이션에서 `kubectl`을 사용해 클러스터에 접근할 때 이 kubeconfig를 활용합니다.
 
 ```bash
 {
@@ -177,35 +188,53 @@ Generate a kubeconfig file for the `admin` user:
 }
 ```
 
-Results:
+**생성된 파일**:
+- `admin.kubeconfig`
 
-```text
-admin.kubeconfig
-```
+---
 
-## Distribute the Kubernetes Configuration Files
+### 7. Kubernetes 구성 파일 배포
 
-Copy the `kubelet` and `kube-proxy` kubeconfig files to the node-0 instance:
+생성된 kubeconfig들을 해당 노드에 배포해야 합니다.
+
+#### 7.1 워커 노드(kubelet, kube-proxy)
 
 ```bash
 for host in node-0 node-1; do
-  ssh root@$host "mkdir /var/lib/{kube-proxy,kubelet}"
-  
+  ssh root@${host} "mkdir -p /var/lib/{kube-proxy,kubelet}"
+
   scp kube-proxy.kubeconfig \
-    root@$host:/var/lib/kube-proxy/kubeconfig \
-  
+    root@${host}:/var/lib/kube-proxy/kubeconfig
+
   scp ${host}.kubeconfig \
-    root@$host:/var/lib/kubelet/kubeconfig
+    root@${host}:/var/lib/kubelet/kubeconfig
 done
 ```
 
-Copy the `kube-controller-manager` and `kube-scheduler` kubeconfig files to the controller instance:
+- 각 **kubelet**은 `<hostname>.kubeconfig`를 사용합니다.
+- 노드별 **kube-proxy**는 `kube-proxy.kubeconfig` 파일을 사용합니다.
+
+#### 7.2 컨트롤 플레인(`server`)
 
 ```bash
-scp admin.kubeconfig \
+scp \
+  admin.kubeconfig \
   kube-controller-manager.kubeconfig \
   kube-scheduler.kubeconfig \
   root@server:~/
 ```
 
-Next: [Generating the Data Encryption Config and Key](06-data-encryption-keys.md)
+- **admin.kubeconfig**: 컨트롤 플레인 노드에서 직접 클러스터 관리를 할 때 사용
+- **kube-controller-manager**, **kube-scheduler**: 해당 서비스들이 필요한 kubeconfig 파일
+
+---
+
+### 결론
+
+이로써 다음 작업을 완료했습니다:
+
+1. **kubelet**, **kube-proxy**, **kube-controller-manager**, **kube-scheduler**, **admin**에 대한 kubeconfig 파일 생성
+2. 생성된 kubeconfig를 각 노드(워커 노드, 컨트롤 플레인)에 배포
+
+**다음 단계**  
+**[Generating the Data Encryption Config and Key](06-data-encryption-keys.md)**를 진행하여 etcd에 저장되는 중요한 데이터를 암호화하는 방법을 배워 보세요.

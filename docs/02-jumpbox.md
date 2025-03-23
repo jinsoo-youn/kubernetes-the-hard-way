@@ -1,128 +1,152 @@
-# Set Up The Jumpbox
+### 개요(Overview)
 
-In this lab you will set up one of the four machines to be a `jumpbox`. This machine will be used to run commands in this tutorial. While a dedicated machine is being used to ensure consistency, these commands can also be run from just about any machine including your personal workstation running macOS or Linux.
+이 실습에서는 네 대의 머신 중 하나를 **jumpbox**로 지정합니다. 이 jumpbox는 튜토리얼 전반에 걸쳐 Kubernetes 클러스터 설정을 위한 관리용 머신으로 사용됩니다. 여기서는 일관성을 위해 전용 jumpbox를 사용하지만, 필요하다면 macOS나 Linux가 설치된 다른 호스트에서도 이 과정을 수행할 수 있습니다.
 
-Think of the `jumpbox` as the administration machine that you will use as a home base when setting up your Kubernetes cluster from the ground up. One thing we need to do before we get started is install a few command line utilities and clone the Kubernetes The Hard Way git repository, which contains some additional configuration files that will be used to configure various Kubernetes components throughout this tutorial. 
+### 사전 준비(Prerequisites)
 
-Log in to the `jumpbox`:
+- Debian/Ubuntu 계열 OS(Ubuntu 20.04 이상 등)에서 동작하는 머신(이 문서에서는 jumpbox로 언급)
+- jumpbox에 접속할 수 있는 SSH 접근 권한
+- jumpbox에 접속하기 위한 유효한 SSH 키
+- Kubernetes 바이너리를 다운로드하고 저장할 수 있는 충분한 디스크 공간(최소 1GB 이상 권장)
+- 필요한 패키지와 바이너리를 다운로드하기 위한 인터넷 연결
+
+> **참고:** 본 튜토리얼에서는 편의를 위해 모든 명령을 `root` 사용자로 실행합니다. 실제 운영 환경에서는 적절한 권한을 갖춘 일반 사용자 계정을 사용하는 것을 권장합니다.
+
+---
+
+### 1. Jumpbox에 접속
+
+다음 명령을 사용해 SSH 키로 jumpbox에 접속합니다:
 
 ```bash
-ssh -i your/ssh/key ubuntu@jumpbox
+ssh -i path/to/your/ssh/key ubuntu@<jumpbox-ip>
 ```
 
-Change to root user:
+`root` 사용자로 전환합니다:
 
 ```bash
-sudo su - 
+sudo su -
 ```
 
-All commands will be run as the `root` user. This is being done for the sake of convenience, and will help reduce the number of commands required to set everything up.
-
-### Install Command Line Utilities
-
-Now that you are logged into the `jumpbox` machine as the `root` user, you will install the command line utilities that will be used to preform various tasks throughout the tutorial. 
+`root` 사용자로 전환되었는지 확인합니다:
 
 ```bash
+whoami
+```
+
+출력 예시:
+```text
+root
+```
+
+---
+
+### 2. 명령줄 도구 설치
+
+튜토리얼 전반에서 필요한 필수 유틸리티를 설치합니다. (선택적으로) 패키지 목록을 업데이트한 뒤, 유틸리티들을 설치하세요:
+
+```bash
+apt-get update
 apt-get -y install wget curl vim openssl git
 ```
 
-### Sync GitHub Repository
+이 도구들은 바이너리 다운로드, 편집, 리포지토리 클론, 인증서 관리를 위해 필요합니다.
 
-Now it's time to download a copy of this tutorial which contains the configuration files and templates that will be used build your Kubernetes cluster from the ground up. Clone the Kubernetes The Hard Way git repository using the `git` command:
+---
 
-```bash
-git clone --depth 1 \
-  https://github.com/jinsoo-youn/kubernetes-the-hard-way.git
-```
+### 3. Kubernetes The Hard Way 리포지토리 클론
 
-Change into the `kubernetes-the-hard-way` directory:
+튜토리얼과 관련된 설정 파일, 템플릿이 들어 있는 리포지토리를 로컬로 복제합니다:
 
 ```bash
+git clone --depth 1 https://github.com/jinsoo-youn/kubernetes-the-hard-way.git
 cd kubernetes-the-hard-way
 ```
 
-This will be the working directory for the rest of the tutorial. If you ever get lost run the `pwd` command to verify you are in the right directory when running commands on the `jumpbox`:
+이 디렉터리(`/root/kubernetes-the-hard-way`)에서 이후 모든 작업을 진행합니다. 작업 도중 디렉터리가 혼동되면 다음 명령으로 현재 디렉터리를 확인하세요:
 
 ```bash
 pwd
 ```
 
-```text
-/root/kubernetes-the-hard-way
-```
+---
 
-### Download Binaries
+### 4. 바이너리 다운로드
 
-In this section you will download the binaries for the various Kubernetes components. The binaries will be stored in the `downloads` directory on the `jumpbox`, which will reduce the amount of internet bandwidth required to complete this tutorial as we avoid downloading the binaries multiple times for each machine in our Kubernetes cluster.
+이제 Kubernetes와 관련된 다양한 바이너리를 다운로드하여 jumpbox에 보관합니다. 이렇게 하면 클러스터 내 다른 머신에서 여러 번 다운로드하지 않아도 됩니다.
 
-From the `kubernetes-the-hard-way` directory create a `downloads` directory using the `mkdir` command:
+1. **downloads 디렉터리 생성**:
 
-```bash
-mkdir downloads
-```
+   ```bash
+   mkdir downloads
+   ```
 
-The binaries that will be downloaded are listed in the `downloads.txt` file, which you can review using the `cat` command:
+2. **다운로드 목록 확인**:
 
-```bash
-cat downloads.txt
-```
+   ```bash
+   cat downloads.txt
+   ```
 
-Download the binaries listed in the `downloads.txt` file using the `wget` command:
+   이 파일에는 필요한 Kubernetes 바이너리와 관련 도구들의 다운로드 URL이 나열되어 있습니다.
 
-```bash
-wget -q --show-progress \
-  --https-only \
-  --timestamping \
-  -P downloads \
-  -i downloads.txt
-```
+3. **바이너리 다운로드**:
 
-인터넷 연결 속도에 따라 총 625 MB 의 바이너리 파일을 받는데 걸리는 시간이 다르며, 대략 24초 정도의 시간이 소요된다. 
-다운로드가 끝나면, `ls` 명령어로 다운로드한 파일을 목록을 확인한다.
+   ```bash
+   wget -q --show-progress \
+     --https-only \
+     --timestamping \
+     -P downloads \
+     -i downloads.txt
+   ```
 
-```bash
-ls -loh downloads
-```
+   총 용량이 약 625MB 이상이므로 인터넷 속도에 따라 시간이 다소 걸릴 수 있습니다. 다운로드가 끝나면 다음 명령으로 파일을 확인합니다:
 
-```text
-total 625M
--rw-r--r-- 1 root  44M May 10  2023 cni-plugins-linux-amd64-v1.3.0.tgz
--rw-r--r-- 1 root  46M Oct 27  2023 containerd-1.7.8-linux-amd64.tar.gz
--rw-r--r-- 1 root  23M Aug 14  2023 crictl-v1.28.0-linux-amd64.tar.gz
--rw-r--r-- 1 root  16M Jul 11  2023 etcd-v3.4.27-linux-amd64.tar.gz
--rw-r--r-- 1 root 117M Oct 18  2023 kube-apiserver
--rw-r--r-- 1 root 113M Oct 18  2023 kube-controller-manager
--rw-r--r-- 1 root  53M Oct 18  2023 kube-proxy
--rw-r--r-- 1 root  54M Oct 18  2023 kube-scheduler
--rw-r--r-- 1 root  48M Oct 18  2023 kubectl
--rw-r--r-- 1 root 106M Oct 18  2023 kubelet
--rw-r--r-- 1 root  11M Aug 11  2023 runc.amd64
-```
+   ```bash
+   ls -loh downloads
+   ```
 
-### Install kubectl
+   예시 출력으로 `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, `kubectl`, `kubelet` 등의 파일이 보입니다.
 
-In this section you will install the `kubectl`, the official Kubernetes client command line tool, on the `jumpbox` machine. `kubectl will be used to interact with the Kubernetes control once your cluster is provisioned later in this tutorial.
+> **팁:** 운영 환경에서는 다운로드한 파일들의 무결성을 확인하기 위해 체크섬을 검증하는 것이 좋습니다.
 
-Use the `chmod` command to make the `kubectl` binary executable and move it to the `/usr/local/bin/` directory:
+---
 
-```bash
-{
-  chmod +x downloads/kubectl
-  cp downloads/kubectl /usr/local/bin/
-}
-```
+### 5. `kubectl` 설치
 
-At this point `kubectl` is installed and can be verified by running the `kubectl` command:
+`kubectl`은 Kubernetes 공식 CLI 클라이언트로, 클러스터 구성 후에 API 서버를 비롯한 컨트롤 플레인과 상호 작용할 때 사용합니다.
 
-```bash
-kubectl version --client
-```
+1. **`kubectl` 실행 권한 부여 및 이동**:
 
-```text
-Client Version: v1.28.3
-Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
-```
+   ```bash
+   {
+     chmod +x downloads/kubectl
+     cp downloads/kubectl /usr/local/bin/
+   }
+   ```
 
-At this point the `jumpbox` has been set up with all the command line tools and utilities necessary to complete the labs in this tutorial.
+2. **설치 확인**:
 
-Next: [Provisioning Compute Resources](03-compute-resources.md)
+   ```bash
+   kubectl version --client
+   ```
+
+   예시 출력:
+   ```text
+   Client Version: v1.28.3
+   Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
+   ```
+
+---
+
+### 결론
+
+이제 jumpbox 환경이 다음과 같이 구성되었습니다:
+
+- 핵심 CLI 도구(`wget`, `curl`, `vim`, `openssl`, `git`) 설치
+- `downloads/` 디렉터리에 Kubernetes 바이너리 다운로드
+- `/usr/local/bin/` 경로에 `kubectl` 설치 완료
+
+이 상태에서 Kubernetes the Hard Way 튜토리얼의 나머지 단계를 진행할 준비가 되었습니다.
+
+**다음 단계**  
+다음 실습: **[Provisioning Compute Resources](03-compute-resources.md)** 로 이동하세요.

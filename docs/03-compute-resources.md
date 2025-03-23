@@ -1,176 +1,124 @@
-# Provisioning Compute Resources
 
-Kubernetes requires a set of machines to host the Kubernetes control plane and the worker nodes where containers are ultimately run. In this lab you will provision the machines required for setting up a Kubernetes cluster.
+### 개요
+
+이 실습에서는 Kubernetes 클러스터를 구성하기 위해 필요한 컴퓨팅 리소스를 설정합니다. 일반적으로 다음을 준비합니다:
+
+- **Kubernetes 컨트롤 플레인**을 구동할 머신(여기서는 `server`라고 명명)
+- 컨테이너 워크로드를 실행하는 **워커 노드**(여기서는 `node-0`, `node-1`)
+
+이러한 머신들이 서로 통신할 수 있도록 SSH 접근, 호스트네임 설정, DNS(또는 `/etc/hosts`) 구성이 필요합니다.
+
+> **참고:** 이 튜토리얼은 편의를 위해 `root` 사용자 SSH 접근을 활성화합니다. 실제 운영 환경에서는 일반 사용자 계정을 사용하고 보안 설정을 강화하는 것을 권장합니다.
+
+### 사전 준비
+
 
 ![alt text](image.png)
 
-## Machine Database
+- 모든 노드에 접근 가능한 **jumpbox** 머신
+- `server`, `node-0`, `node-1`로 구성된 총 3대의 머신
+- SSH 키(비밀번호 대신 키를 통한 인증 권장)
+- 각 머신에 대한 루트 권한(혹은 이에 준하는 권한)
 
-This tutorial will leverage a text file, which will serve as a machine database, to store the various machine attributes that will be used when setting up the Kubernetes control plane and worker nodes. The following schema represents entries in the machine database, one entry per line:
+---
+
+### 1. 머신 데이터베이스 생성
+
+`machines.txt` 파일을 만들어서 클러스터에 속한 각 머신 정보를 간단히 정리합니다. 일반적인 형식은 다음과 같습니다:
 
 ```text
 IPV4_ADDRESS FQDN HOSTNAME POD_SUBNET
 ```
 
-Each of the columns corresponds to a machine IP address `IPV4_ADDRESS`, fully qualified domain name `FQDN`, host name `HOSTNAME`.
+- `IPV4_ADDRESS`: jumpbox에서 접근 가능한 IP 주소
+- `FQDN`: 머신의 FQDN 도메인 이름
+- `HOSTNAME`: 짧은 호스트명(`server`, `node-0`, `node-1` 등)
+- `POD_SUBNET` (선택): Calico 등의 CNI를 직접 설정할 때 사용되는 노드별 Pod CIDR 범위
 
-Here is an example machine database similar to the one used when creating this tutorial. Notice the IP addresses have been masked out. Your machines can be assigned any IP address as long as each machine is reachable from each other and the `jumpbox`.
+단, **Calico**와 같은 네트워킹 솔루션을 사용할 경우, 노드별 고유한 Pod 서브넷이 불필요할 수 있으므로 이 칼럼을 생략해도 됩니다.
+
+<details>
+<summary>예시 <code>machines.txt</code> 파일</summary>
 
 ```bash
-cat << EOF > machines.txt
-192.168.0.16 server.kubernetes.local server
-192.168.0.32 node-0.kubernetes.local node-0
-192.168.0.100 node-1.kubernetes.local node-1
+cat <<EOF > machines.txt
+192.168.0.16   server.kubernetes.local     server
+192.168.0.32   node-0.kubernetes.local     node-0   10.200.0.0/24
+192.168.0.100  node-1.kubernetes.local     node-1   10.200.1.0/24
 EOF
 ```
 
-```text
-XXX.XXX.XXX.XXX server.kubernetes.local server  
-XXX.XXX.XXX.XXX node-0.kubernetes.local node-0 10.200.0.0/24
-XXX.XXX.XXX.XXX node-1.kubernetes.local node-1 10.200.1.0/24
-```
+</details>
 
-Now it's your turn to create a `machines.txt` file with the details for the three machines you will be using to create your Kubernetes cluster. Use the example machine database from above and add the details for your machines. 
-> 본문과 다르게 본 튜토리얼에서는 Calico를 통해 Container Network를 구성하기 때문에 별도의 각 node 별도 pod의 ip 범위를 machines.txt 파일에 명시할 필요가 없다.
+작성한 `machines.txt` 파일의 IP 주소, 호스트명을 실제 환경에 맞게 조정합니다.
 
-## Configuring SSH Access
+---
 
-SSH will be used to configure the machines in the cluster. Verify that you have `root` SSH access to each machine listed in your machine database. You may need to enable root SSH access on each node by updating the sshd_config file and restarting the SSH server.
-> root로 바로 접근이 허용되어 있으면 별도의 설정이 필요 없으나, 대부분 Cloud Provider 에서 root 로그인을 막고 있다. NHN Cloud도 동일하므로 root 접근이 가능하게 설정 변경이 필요하다.
+### 2. SSH 접근 구성
 
-### Enable root SSH Access
+#### 2.1 `root` SSH 접근 확인/활성화
 
-> server, node-0, node-1 의 각 노드에 접근하여 아래 제공된 명령어들을 실행하여 root 접근이 가능하게 설정한다. 
-> 일반적으로 FIP를 연결한 jumpbox 에 접속 후 같은 VPC 내에 있는 VM으로 접속하여 설정을 한다.
-> jumpbox 에서 VM 이름으로 편하게 접속하기 위해 우선적으로 /etc/hosts에 machines.txt 정보를 입력한다. 
+이 튜토리얼에서는 편의를 위해 `root` 사용자 SSH 접근을 사용합니다. 보안상 이유로 많은 클라우드 제공사는 `root` 로그인을 기본적으로 차단합니다. 만약 이미 `root`로 접속할 수 있다면 이 단계를 건너뛰세요.
 
-```bash 
-cat machines.txt >> /etc/hosts
-cat /etc/hosts
-```
+1. 각 노드(예: `server`, `node-0`, `node-1`)에 `ubuntu` 등 일반 사용자로 접속
+2. `sudo su -` 명령어로 `root` 계정 전환
+3. `/etc/ssh/sshd_config` 파일에서 `PermitRootLogin yes`로 설정
+4. SSH 데몬 재시작: `systemctl restart sshd`
 
-```text
-127.0.1.1 jumpbox.novalocal jumpbox
-127.0.0.1 localhost
-
-# The following lines are desirable for IPv6 capable hosts
-::1 localhost ip6-localhost ip6-loopback
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
-
-192.168.0.16 server.kubernetes.local server
-192.168.0.32 node-0.kubernetes.local node-0
-192.168.0.100 node-1.kubernetes.local node-1
-```
-
-추가로 모두 동일한 키페어를 사용했다는 가정하에 사용된 키페어를 `scp` 명령어로 `jumpbox` 에 옮긴다.
+<details>
+<summary>root SSH 예시 설정</summary>
 
 ```bash
-scp -i ~/.ssh/beta-jinsoo.pem ~/.ssh/beta-jinsoo.pem root@125.6.48.156:/root/.ssh
-```
-
-If `root` SSH access is enabled for each of your machines you can skip this section.
-
-By default, a new `debian` install disables SSH access for the `root` user. This is done for security reasons as the `root` user is a well known user on Linux systems, and if a weak password is used on a machine connected to the internet, well, let's just say it's only a matter of time before your machine belongs to someone else. As mention earlier, we are going to enable `root` access over SSH in order to streamline the steps in this tutorial. Security is a tradeoff, and in this case, we are optimizing for convenience. On each machine login via SSH using your user account, then switch to the `root` user using the `su` command:
-
-```bash
-ssh -i ~/.ssh/beta-jinsoo.pem ubuntu@server
 sudo su -
-```
-
-Edit the `/etc/ssh/sshd_config` SSH daemon configuration file and the `PermitRootLogin` option to `yes`:
-
-```bash
-sed -i \
-  's/^PermitRootLogin.*/PermitRootLogin yes/' \
-  /etc/ssh/sshd_config
-```
-
-Restart the `sshd` SSH server to pick up the updated configuration file:
-
-```bash
+sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 systemctl restart sshd
 ```
+</details>
 
-### Generate and Distribute SSH Keys
+#### 2.2 SSH 키 생성 및 배포
 
-In this section you will generate and distribute an SSH keypair to the `server`, `node-0`, and `node-1`, machines, which will be used to run commands on those machines throughout this tutorial. Run the following commands from the `jumpbox` machine.
+작업 편의를 위해 튜토리얼 전용 SSH 키를 생성하고, 각 노드에 배포합니다:
 
-Generate a new SSH key:
+1. **키 생성** (jumpbox에서 실행):
 
-```bash
-ssh-keygen
-```
+   ```bash
+   ssh-keygen
+   ```
+    - `/root/.ssh/id_rsa`에 저장(기본값)
+    - 패스프레이즈는 비워두어도 됩니다.
 
-```text
-Generating public/private rsa key pair.
-Enter file in which to save the key (/root/.ssh/id_rsa): 
-Enter passphrase (empty for no passphrase): 
-Enter same passphrase again: 
-Your identification has been saved in /root/.ssh/id_rsa
-Your public key has been saved in /root/.ssh/id_rsa.pub
-```
+2. **공개 키 배포**:
+    - 기존에 다른 SSH 키로 접속이 가능하다면, 해당 키로 노드에 접속한 뒤 새롭게 생성한 `id_rsa.pub` 내용을 `~/.ssh/authorized_keys`에 추가합니다.
 
-Copy the SSH public key to each machine:
+3. **새 키 접속 확인**:
 
-수동 복사
-1. 기존 키로 인스턴스에 접속:
-```bash
-ssh -i /path/to/your-key-pair.pem ubuntu@hostname
+   ```bash
+   while read IP FQDN HOST; do
+     ssh -i /root/.ssh/id_rsa root@"${IP}" uname -o -m -n
+   done < machines.txt
+   ```
+   정상적으로 연결되면 각 노드의 OS, 아키텍처, 호스트명이 출력됩니다.
 
-sudo su -
-```
+---
 
-2. 로컬 머신에서 공개 키 확인:
-```bash
-cat ~/.ssh/id_rsa.pub
-```
+### 3. 호스트네임 설정
 
-3. 인스턴스에서 authorized_keys 파일에 추가:
-```bash
-echo "ssh-rsa AAAAB3...your-public-key... root@hostname" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-```
+클러스터의 각 머신은 `server`, `node-0`, `node-1` 같은 호스트네임과 FQDN을 가져야 합니다. 이를 통해 Kubernetes 컴포넌트 간 통신 시 IP 주소 대신 호스트명을 사용할 수 있습니다.
 
-4. 새 SSH 키로 접속 확인:  
-```bash
-ssh root@hostname
-```
-
-Once each key is added, verify SSH public key access is working:
+**jumpbox**에서 다음 스크립트를 실행하세요:
 
 ```bash
-while read IP FQDN HOST; do 
-  ssh -n root@${IP} uname -o -m
+while read IP FQDN HOST SUBNET; do
+  # 각 노드의 /etc/hosts에서 127.0.1.1 라인을 FQDN/HOST로 수정
+  CMD="sed -i 's/^127.0.1.1.*/127.0.1.1\t${FQDN} ${HOST}/' /etc/hosts"
+  ssh -n root@${IP} "$CMD"
+
+  # 시스템 호스트네임 변경
+  ssh -n root@${IP} hostnamectl hostname ${HOST}
 done < machines.txt
 ```
 
-```text
-Please login as the user "ubuntu" rather than the user "root".
-x86_64 GNU/Linux
-Please login as the user "ubuntu" rather than the user "root".
-x86_64 GNU/Linux
-Please login as the user "ubuntu" rather than the user "root".
-x86_64 GNU/Linux
-```
-
-## Hostnames
-
-In this section you will assign hostnames to the `server`, `node-0`, and `node-1` machines. The hostname will be used when executing commands from the `jumpbox` to each machine. The hostname also play a major role within the cluster. Instead of Kubernetes clients using an IP address to issue commands to the Kubernetes API server, those client will use the `server` hostname instead. Hostnames are also used by each worker machine, `node-0` and `node-1` when registering with a given Kubernetes cluster.
-
-To configure the hostname for each machine, run the following commands on the `jumpbox`.
-
-Set the hostname on each machine listed in the `machines.txt` file:
-
-```bash
-while read IP FQDN HOST SUBNET; do 
-    CMD="sed -i 's/^127.0.1.1.*/127.0.1.1\t${FQDN} ${HOST}/' /etc/hosts"
-    ssh -n root@${IP} "$CMD"
-    ssh -n root@${IP} hostnamectl hostname ${HOST}
-done < machines.txt
-```
-
-Verify the hostname is set on each machine:
+설정이 정상적으로 반영되었는지 확인:
 
 ```bash
 while read IP FQDN HOST SUBNET; do
@@ -178,107 +126,78 @@ while read IP FQDN HOST SUBNET; do
 done < machines.txt
 ```
 
+예상 출력:
 ```text
 server.kubernetes.local
 node-0.kubernetes.local
 node-1.kubernetes.local
 ```
 
-## DNS
+---
 
-In this section you will generate a DNS `hosts` file which will be appended to `jumpbox` local `/etc/hosts` file and to the `/etc/hosts` file of all three machines used for this tutorial. This will allow each machine to be reachable using a hostname such as `server`, `node-0`, or `node-1`.
+### 4. DNS/Hosts 파일 구성
 
-Create a new `hosts` file and add a header to identify the machines being added:
+네트워크 환경에 따라, 간단히 `/etc/hosts`를 사용해 내부 DNS를 설정할 수 있습니다. 이렇게 하면 외부 DNS 없이도 단순 호스트명(`server`, `node-0`, `node-1`)으로 접속이 가능합니다.
 
-```bash
-echo "" > hosts
-echo "# Kubernetes The Hard Way" >> hosts
-```
+1. **임시 `hosts` 파일 생성** (jumpbox에서):
 
-Generate a DNS entry for each machine in the `machines.txt` file and append it to the `hosts` file:
+   ```bash
+   echo "" > hosts
+   echo "# Kubernetes The Hard Way" >> hosts
+   ```
 
-```bash
-while read IP FQDN HOST; do 
-    ENTRY="${IP} ${FQDN} ${HOST}"
-    echo $ENTRY >> hosts
-done < machines.txt
-```
+2. **`machines.txt` 기반으로 `hosts` 파일 채우기**:
 
-Review the DNS entries in the `hosts` file:
+   ```bash
+   while read IP FQDN HOST; do
+     echo "${IP} ${FQDN} ${HOST}" >> hosts
+   done < machines.txt
 
-```bash
-cat hosts
-```
+   cat hosts
+   ```
 
-```text
+3. **jumpbox의 `/etc/hosts`에 추가**:
 
-# Kubernetes The Hard Way
-XXX.XXX.XXX.XXX server.kubernetes.local server
-XXX.XXX.XXX.XXX node-0.kubernetes.local node-0
-XXX.XXX.XXX.XXX node-1.kubernetes.local node-1
-```
+   ```bash
+   cat hosts >> /etc/hosts
+   ```
 
-## Adding DNS Entries To A Local Machine
+4. **각 노드에도 배포**:
 
-In this section you will append the DNS entries from the `hosts` file to the local `/etc/hosts` file on your `jumpbox` machine.
+   ```bash
+   while read IP FQDN HOST; do
+     scp hosts root@${HOST}:~/
+     ssh -n root@${HOST} "cat hosts >> /etc/hosts"
+   done < machines.txt
+   ```
 
-Append the DNS entries from `hosts` to `/etc/hosts`:
+이제 모든 머신에서 IP 주소 대신 `server`, `node-0`, `node-1` 같은 호스트명을 사용할 수 있습니다.
 
-```bash
-cat hosts >> /etc/hosts
-```
+---
 
-Verify that the `/etc/hosts` file has been updated:
+### 5. 검증
 
-```bash
-cat /etc/hosts
-```
-
-```text
-127.0.0.1       localhost
-127.0.1.1       jumpbox
-
-# The following lines are desirable for IPv6 capable hosts
-::1     localhost ip6-localhost ip6-loopback
-ff02::1 ip6-allnodes
-ff02::2 ip6-allrouters
-
-
-
-# Kubernetes The Hard Way
-XXX.XXX.XXX.XXX server.kubernetes.local server
-XXX.XXX.XXX.XXX node-0.kubernetes.local node-0
-XXX.XXX.XXX.XXX node-1.kubernetes.local node-1
-```
-
-At this point you should be able to SSH to each machine listed in the `machines.txt` file using a hostname.
+jumpbox에서 각 호스트명으로 SSH가 가능한지 확인해 봅니다:
 
 ```bash
-for host in server node-0 node-1
-   do ssh root@${host} uname -o -m -n
+for host in server node-0 node-1; do
+  ssh root@${host} "uname -o -m -n"
 done
 ```
 
-```text
-server aarch64 GNU/Linux
-node-0 aarch64 GNU/Linux
-node-1 aarch64 GNU/Linux
-```
+각 노드의 OS 이름, 아키텍처, 호스트명이 정상적으로 표시되면 성공입니다.
 
-## Adding DNS Entries To The Remote Machines
+---
 
-In this section you will append the DNS entries from `hosts` to `/etc/hosts` on each machine listed in the `machines.txt` text file.
+### 결론
 
-Copy the `hosts` file to each machine and append the contents to `/etc/hosts`:
+지금까지 다음 사항을 완료했습니다:
 
-```bash
-while read IP FQDN HOST; do
-  scp hosts root@${HOST}:~/
-  ssh -n \
-    root@${HOST} "cat hosts >> /etc/hosts"
-done < machines.txt
-```
+- `machines.txt` 파일에 IP, FQDN, 호스트명이 올바르게 정의
+- SSH를 통해 각 노드에 `root`로 접속 가능
+- 적절한 호스트네임 설정 및 `/etc/hosts` 기반 DNS 구성 완료
 
-At this point hostnames can be used when connecting to machines from your `jumpbox` machine, or any of the three machines in the Kubernetes cluster. Instead of using IP addresess you can now connect to machines using a hostname such as `server`, `node-0`, or `node-1`.
+이제 Kubernetes 클러스터 간 통신을 위한 TLS 인증서와 CA를 생성할 준비가 되었습니다.
 
-Next: [Provisioning a CA and Generating TLS Certificates](04-certificate-authority.md)
+**다음 단계**  
+**[Provisioning a CA and Generating TLS Certificates](04-certificate-authority.md)** 로 이동하세요.

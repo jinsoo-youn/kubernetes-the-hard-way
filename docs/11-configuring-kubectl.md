@@ -1,35 +1,37 @@
-# Configuring kubectl for Remote Access
+### 개요
 
-In this lab you will generate a kubeconfig file for the `kubectl` command line utility based on the `admin` user credentials.
+이 실습에서는 **jumpbox**에서 `kubectl` 명령어를 사용해 Kubernetes 클러스터에 **원격으로 접근**할 수 있도록 설정합니다.  
+`admin` 사용자의 인증서를 기반으로 kubeconfig를 생성합니다.
 
-> Run the commands in this lab from the `jumpbox` machine.
+> 이 실습의 모든 명령은 **jumpbox**에서 실행해야 합니다.
 
-## The Admin Kubernetes Configuration File
+---
 
-Each kubeconfig requires a Kubernetes API Server to connect to.
+### 1단계: API 서버 접근성 확인
 
-You should be able to ping `server.kubernetes.local` based on the `/etc/hosts` DNS entry from a previous lap.
+`kubectl` 설정에 앞서, `server.kubernetes.local` 호스트명이 정상적으로 API 서버에 연결되는지 확인합니다.  
+이는 이전 실습에서 `/etc/hosts`에 등록된 DNS 이름입니다.
 
 ```bash
-curl -k --cacert ca.crt \
-  https://server.kubernetes.local:6443/version
+curl -k --cacert ca.crt https://server.kubernetes.local:6443/version
 ```
 
-```text
+예상 출력:
+
+```json
 {
   "major": "1",
   "minor": "28",
   "gitVersion": "v1.28.3",
-  "gitCommit": "a8a1abc25cad87333840cd7d54be2efaf31a3177",
-  "gitTreeState": "clean",
-  "buildDate": "2023-10-18T11:33:18Z",
-  "goVersion": "go1.20.10",
-  "compiler": "gc",
-  "platform": "linux/amd64"
+  ...
 }
 ```
 
-Generate a kubeconfig file suitable for authenticating as the `admin` user:
+---
+
+### 2단계: Admin 사용자용 kubeconfig 생성
+
+아래 명령어는 `admin` 사용자 인증서를 사용해 `kubectl` 설정 파일을 생성합니다:
 
 ```bash
 {
@@ -49,33 +51,52 @@ Generate a kubeconfig file suitable for authenticating as the `admin` user:
   kubectl config use-context kubernetes-the-hard-way
 }
 ```
-The results of running the command above should create a kubeconfig file in the default location `~/.kube/config` used by the  `kubectl` commandline tool. This also means you can run the `kubectl` command without specifying a config.
 
+이 명령은 `~/.kube/config` 파일을 생성하며, 이 파일은 `kubectl` 명령이 기본적으로 사용하는 설정 파일입니다.  
+따라서 이후에는 `--kubeconfig` 옵션 없이도 `kubectl` 명령을 사용할 수 있습니다.
 
-## Verification
+---
 
-Check the version of the remote Kubernetes cluster:
+### 3단계: kubectl 원격 연결 테스트
+
+#### 클러스터 버전 확인
 
 ```bash
 kubectl version
 ```
 
+예상 출력:
+
 ```text
 Client Version: v1.28.3
-Kustomize Version: v5.0.4-0.20230601165947-6ce0bf390ce3
 Server Version: v1.28.3
 ```
 
-List the nodes in the remote Kubernetes cluster:
+#### 클러스터 노드 상태 확인
 
 ```bash
 kubectl get nodes
 ```
 
-```
+예상 출력:
+
+```text
 NAME     STATUS   ROLES    AGE   VERSION
 node-0   Ready    <none>   30m   v1.28.3
 node-1   Ready    <none>   35m   v1.28.3
 ```
 
-Next: [Smoke Test](12-smoke-test.md)
+정상적으로 노드 상태가 조회되면, 원격에서 클러스터를 제어할 준비가 완료된 것입니다.
+
+---
+
+### 결론
+
+지금까지 다음 작업을 완료했습니다:
+
+- jumpbox에서 API 서버 연결 테스트
+- `admin` 사용자용 kubeconfig 생성
+- `kubectl`로 원격에서 클러스터 조회 및 명령 실행 검증
+
+**다음 단계**  
+**[Smoke Test](12-smoke-test.md)** 실습으로 넘어가 클러스터에서 실제 워크로드가 정상적으로 실행되는지 확인합니다.
